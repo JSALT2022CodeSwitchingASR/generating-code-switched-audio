@@ -40,7 +40,7 @@ class Hamming(AudioTransform):
             samples = torch.from_numpy(samples)
         augmented = samples*np.float32(np.hamming(len(samples)))
         return augmented.numpy()
-def add_overlap(sample1, sample2, overlap=int(16000*0.05)):
+def add_overlap(sample1, sample2, overlap=int(16000*0.12)):
     fn = Hamming()
     sample1 = fn(sample1)
     sample2 = fn(sample2)
@@ -86,6 +86,7 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                     c=take_random(token,supervisions,recordings)
                     c = c.perturb_volume(factor=5.)
                     audio=c.load_audio().squeeze()
+                    audio = np.pad(audio, (0, int(0.05*16000)), 'constant') # padding 0.05s with zeros from both sides
                 
                     index+=1 
                 else:
@@ -93,9 +94,12 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                     c = c.perturb_volume(factor=5.) #increasing volume because it was too quiet 
                 
                     #audio=np.append(audio,np.zeros((int(16000*0.01)),dtype='float32')) #the small pause 
-                    if (len(audio) < int(16000*0.05)): #if segment is too short for overlap of 0.05 secs 
-                        audio = np.append(audio,np.zeros((int(16000*0.05)-len(audio)),dtype='float32'))
-                    audio = add_overlap(audio,c.load_audio().squeeze())
+                    if (len(audio) < int(16000*0.1)): #if segment is too short for overlap of 0.1 secs 
+                        #audio = np.append(audio,np.zeros((int(16000*0.05)-len(audio)),dtype='float32'))
+                        continue
+                    audio2 = c.load_audio().squeeze()
+                    audio2 = np.pad(audio2, (int(0.05*16000), int(0.05*16000)), 'constant') # padding 0.05s with zeros from both sides
+                    audio = add_overlap(audio,audio2)
                     index+=1 
 
                  
