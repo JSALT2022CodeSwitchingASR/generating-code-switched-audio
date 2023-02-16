@@ -21,14 +21,14 @@ def setup_sup_dict(ctm_file_path, recording_dict_path,sup_dict_folder):
 	
 		if(recording_id in recording_set):
 			
-			if(eyedee in supervision_segments):
-                                #if(duration > 1.0):
-				sup=(eyedee,recording_id, start, duration,channel, text) 
-				supervision_segments[eyedee].append(sup)
-			else: 
-                                #if(duration > 1.0): 
-				sup=(eyedee,recording_id, start,duration,channel,text)
-				supervision_segments[eyedee]=[sup]
+                        if(eyedee in supervision_segments):
+                                if(duration > 0.1):
+                                        sup=(eyedee,recording_id, start, duration,channel, text)
+                                        supervision_segments[eyedee].append(sup)
+                        else:
+                                if(duration > 0.1): 
+                                        sup=(eyedee,recording_id, start,duration,channel,text)
+                                        supervision_segments[eyedee]=[sup]
 
 	out_file = open(sup_dict_folder+"/supervisions.json", "w")
 	json.dump(supervision_segments, out_file)
