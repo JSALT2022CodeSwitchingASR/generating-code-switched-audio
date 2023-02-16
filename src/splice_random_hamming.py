@@ -84,21 +84,19 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                 transcript += (token+ ' ')
                 if index ==0: 
                     c=take_random(token,supervisions,recordings)
-                    c = c.perturb_volume(factor=5.)
+                    #c = c.perturb_volume(factor=5.)
                     audio=c.load_audio().squeeze()
                     audio = np.pad(audio, (0, int(0.05*16000)), 'constant') # padding 0.05s with zeros from both sides
-                
                     index+=1 
                 else:
                     c=take_random(token,supervisions,recordings)
-                    c = c.perturb_volume(factor=5.) #increasing volume because it was too quiet 
+                    #c = c.perturb_volume(factor=5.) #increasing volume because it was too quiet 
                 
                     #audio=np.append(audio,np.zeros((int(16000*0.01)),dtype='float32')) #the small pause 
-                    if (len(audio) < int(16000*0.1)): #if segment is too short for overlap of 0.1 secs 
-                        #audio = np.append(audio,np.zeros((int(16000*0.05)-len(audio)),dtype='float32'))
-                        continue
+                    #if (len(audio) < int(16000*0.05)): #if segment is too short for overlap of 0.05 secs 
+                    #    audio = np.append(audio,np.zeros((int(16000*0.05)-len(audio)),dtype='float32'))
                     audio2 = c.load_audio().squeeze()
-                    audio2 = np.pad(audio2, (int(0.05*16000), int(0.05*16000)), 'constant') # padding 0.05s with zeros from both sides
+                    audio2 = np.pad(audio2, (int(0.05*16000), int(0.05*16000)), 'constant')
                     audio = add_overlap(audio,audio2)
                     index+=1 
 
