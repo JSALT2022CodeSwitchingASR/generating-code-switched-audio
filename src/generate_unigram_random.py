@@ -10,8 +10,10 @@ import multiprocessing
 import time
 import argparse
 import splice_random as sp2
-from lhotse import Recording
+from lhotse import RecordingSet, Recording, AudioSource
+import logging
 
+import pdb
 parser = argparse.ArgumentParser(description='CS Audio generation pipeline')
 # Datasets
 parser.add_argument('--input', type=str, required=True,
@@ -48,14 +50,18 @@ def main():
     start_time = time.perf_counter()
 
     proc_count=args.process
-
+    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
     data_path=args.data
     sup_path=data_path+'supervisions.json' #args.supervisions
     #bins_path=data_path+'unigram_bins.json'
     rec_path=data_path+'recording_dict.json'
 
+    logging.info(f"Loading supervisions and recordings...")
     supervisions, recordings= sp2.load_dicts_modified(sup_path, rec_path)
-    recordings = {key: (Recording.from_file(val).move_to_memory(channels=0,format="wav")) for key, val in recordings.items()}
+    
+    #recordings = RecordingSet.from_recordings(Recording.from_file(val) for key, val in recordings.items())
+    #recordings = {key: (Recording.from_file(val).move_to_memory(channels=0,format="wav")) for key, val in recordings.items()}
+    recordings = {key: Recording.from_file(val) for key, val in recordings.items()}
     inlist=open(args.input, 'r+', encoding='utf8', errors='ignore').readlines()
     #inlist=open(args.input,'r').readlines()
     outdir=args.output
@@ -64,11 +70,12 @@ def main():
     chunk_size = total // proc_count
 
     print(total, chunk_size)
-
+    logging.info(f"Total: {total} Chunk_size: {chunk_size}")
     slice = chunks(inlist, chunk_size)
     processes = []
 
     for i, s in enumerate(slice):
+        logging.info(f"Start processing...")
         p = multiprocessing.Process(target=generate, args=(s,outdir,supervisions, recordings))
         p.start()
         processes.append(p)
@@ -79,7 +86,7 @@ def main():
 
     finish_time = time.perf_counter()
 
-    print(f"Program finished in {finish_time - start_time} seconds")
+    logging.info(f"Program finished in {finish_time - start_time} seconds")
 
 
 if __name__ == "__main__":
