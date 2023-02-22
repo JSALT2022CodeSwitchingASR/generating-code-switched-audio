@@ -86,7 +86,7 @@ def main():
 
     finish_time = time.perf_counter()
 
-    print(f"Program finished in {finish_time - start_time} seconds")
+    logging.info(f"Program finished in {finish_time - start_time} seconds")
 
 
 if __name__ == "__main__":
