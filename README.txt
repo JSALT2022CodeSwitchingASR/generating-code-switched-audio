@@ -1,7 +1,7 @@
 steps to generate audio 
 
 1) with wav.scp file for the monolingual utterances, generate a recording dictionary 
-using setup_recording_dict.py in speechCollage/src2 
+using setup_recording_dict.py in src2 
 usage is: python setup_recording_dict.py wav_scp_path output_folder 
 	e.g. python setup_recording_dict.py home/wav.scp output (do not include / in output path) 
 
