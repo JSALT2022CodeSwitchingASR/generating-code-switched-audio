@@ -1,4 +1,5 @@
 import json
+from lhotse import * 
 import sys 
 
 #create supervision segment dictionary and save it as 
@@ -20,26 +21,24 @@ def setup_sup_dict(ctm_file_path, recording_dict_path,sup_dict_folder):
 		duration=float(line[3]) 
 	
 		if(recording_id in recording_set):
-			
+                        rec = Recording.from_file(recording_set[recording_id])
+                        
                         if(eyedee in supervision_segments):
                                 if(duration > 0.1):
-                                        if start < 0.05: 
-                                                s = 0.0
-                                                d = duration+0.05+(0.05-start) 
-                                        else:
-                                                s = start-0.05
-                                                d = duration+0.1
-                                        sup=(eyedee,recording_id,s, d,channel, text)
+                                        new_start=max(0.0,start-0.05) 
+                                        end = start+duration 
+                                        new_end=min(end+0.05,rec.duration) 
+                                        new_duration = new_end-new_start
+                                        sup=(eyedee,recording_id,new_start, new_duration,channel, text)
                                         supervision_segments[eyedee].append(sup)
                         else:
                                 if(duration > 0.1): 
-                                        if start < 0.05:
-                                                s = 0.0
-                                                d = duration+0.05+(0.05-start)
-                                        else:
-                                                s = start-0.05
-                                                d = duration+0.1
-                                        sup=(eyedee,recording_id, s, d,channel,text)
+                                        new_start=max(0.0,start-0.05)
+                                        end = start+duration
+                                        new_end=min(end+0.05,rec.duration)
+                                        new_duration = new_end-new_start
+                                        sup=(eyedee,recording_id,new_start, new_duration,channel, text)
+    
                                         supervision_segments[eyedee]=[sup]
 
 	out_file = open(sup_dict_folder+"/supervisions.json", "w")
