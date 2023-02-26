@@ -65,7 +65,9 @@ def main():
     inlist=open(args.input, 'r+', encoding='utf8', errors='ignore').readlines()
     #inlist=open(args.input,'r').readlines()
     outdir=args.output
-
+    isExist = os.path.exists(outdir)
+    if not isExist:
+        os.makedirs(outdir)
     total = len(inlist)
     chunk_size = total // proc_count
 
