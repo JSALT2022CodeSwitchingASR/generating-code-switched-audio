@@ -50,11 +50,11 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                 if not cut: 
                     c=take_random(token,supervisions,recordings)
                     cut=c
-                    cut = cut.perturb_volume(5.) #increase volume bc too quiet 
+                    #cut = cut.perturb_volume(5.) #increase volume bc too quiet 
                 else:
                     c=take_random(token,supervisions,recordings)
                     c = c.perturb_volume(5.)
-                    cut=cut.append(c)
+                    #cut=cut.append(c)
                    
 
                  
