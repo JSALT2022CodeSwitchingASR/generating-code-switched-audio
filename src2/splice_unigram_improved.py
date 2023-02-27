@@ -40,13 +40,15 @@ class Hamming(AudioTransform):
             samples = torch.from_numpy(samples)
         augmented = samples*np.float32(np.hamming(len(samples)))
         return augmented.numpy()
+
+hamming = Hamming()
+
 def add_overlap(sample1, sample2, overlap=int(16000*0.1)):
-    fn = Hamming()
-    sample1 = fn(sample1)
-    sample2 = fn(sample2)
-    new = np.zeros(len(sample1)+len(sample2),dtype='float32')
+
+    sample2 = hamming(sample2)
+    new = np.zeros(len(sample1)+len(sample2)-overlap,dtype='float32')
     new[0:len(sample1)] = sample1
-    new[len(sample1)-overlap:len(sample1)-overlap+len(sample2)]+= sample2
+    new[len(sample1)-overlap:len(sample1)-overlap+len(sample2)] += sample2
     return new
 
 def load_dicts_modified(sup_dict_path, rec_dict_path):
@@ -89,7 +91,8 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                     c_audio =c.load_audio().squeeze() 
                     a = c_audio
                     #a = np.pad(c_audio, (0, int(0.05*16000)), 'constant') # padding 0.05s with zeros from both sides
-                    a=a/(math.sqrt(audio.audio_energy(a)))
+                    a = a/(math.sqrt(audio.audio_energy(a)))
+                    a = hamming(a)
                     #print('a energy', audio.audio_energy(a),flush=True)
                     index+=1 
                 else:
@@ -102,9 +105,10 @@ def create_cs_audio(generated_text, output_directory_path, supervisions, recordi
                     c_audio = c.load_audio().squeeze()
                     #audio2 = np.pad(c_audio, (int(0.05*16000), int(0.05*16000)), 'constant')
                     audio2 = c_audio
-                    audio2=audio2/math.sqrt(audio.audio_energy(audio2)) 
+                    audio2 = audio2/math.sqrt(audio.audio_energy(audio2)) 
                     #print('audio2 energy', audio.audio_energy(audio2),flush=True)
                     a = add_overlap(a,audio2)
+                    #cut=cut.append(audio2)
                     index+=1 
 
                  
