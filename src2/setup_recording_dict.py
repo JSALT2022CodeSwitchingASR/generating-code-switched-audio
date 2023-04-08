@@ -1,7 +1,9 @@
 import json 
 import os
-from lhotse import audio
 import sys
+from utils import dump_pickled, load_pickled
+import msgspec
+
 #setup recording dictionary give wave.scp file and 
 #save it as recording_dict.json in rec_output_folder
 
@@ -30,9 +32,10 @@ def setup_rec_dict(wav_scp_path, rec_output_folder):
 			else: 
 				#log audio files that do not exist
 				print(f"Recording {line[1]} does not exist") 
-
-	f=open(rec_output_folder+'/recording_dict.json', 'w') 
-	json.dump(recordings,f)
+	out_file = rec_output_folder+'/recording_dict.pkl'
+	dump_pickled(msgspec.json.encode(recordings), out_file)
+	# f=open(rec_output_folder+'/recording_dict.json', 'w') 
+	# json.dump(recordings,f)
 
 
 if __name__=="__main__":

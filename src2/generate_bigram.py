@@ -12,6 +12,10 @@ import argparse
 import splice_bigram_random as sp2
 from lhotse import Recording
 from pathlib import Path
+import logging
+from utils import dump_pickled, load_pickled
+import msgspec
+import pdb
 
 parser = argparse.ArgumentParser(description='CS Audio generation pipeline')
 # Datasets
@@ -39,7 +43,7 @@ args = parser.parse_args()
 print(args)
 
 
-def generate(generated_text,output_directory_path,recordings,uni_sups,bi_sups):
+def generate(generated_text, output_directory_path, recordings, uni_sups, bi_sups):
     sp2.create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,bi_sups)
 
 def chunks(list, n):
@@ -47,33 +51,44 @@ def chunks(list, n):
 
 
 def main():
+    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
     start_time = time.perf_counter()
 
     proc_count = args.process
 
     data_path = Path(args.data) #'./data/' #
-    uni_sups = data_path / 'supervisions.json'
-    rec_path = data_path / 'recording_dict.json'
-    bi_sups = data_path / 'bigram_supervisions.json' 
+    uni_sups = data_path / 'supervisions.pkl'
+    rec_path = data_path / 'recording_dict.pkl'
+    bi_sups = data_path / 'bigram_supervisions.pkl'
 
-    uni_supervisions,bi_supervisions,recs=sp2.load_dicts_modified(uni_sups,bi_sups,rec_path)
-    recs = {key: Recording.from_file(val).move_to_memory(channels=0,format="wav") for key, val in recs.items()}
+    logging.info(f"Loading supervisions and recordings...")
+    uni_supervisions, bi_supervisions, recs = sp2.load_dicts_modified(uni_sups, bi_sups, rec_path)
+    
+    logging.info(f"Finished loading supervisions and recordings...")
+
+    #recs = {key: Recording.from_file(val).move_to_memory(channels=0,format="wav") for key, val in recs.items()}
+    recs = {key: Recording.from_file(val) for key, val in recs.items()}
     inlist = open(args.input, 'r+', encoding='utf8', errors='ignore').readlines()
     # inlist=open(args.input,'r').readlines()
-    outdir=args.output
-
+    outdir = args.output
+    isExist = os.path.exists(outdir)
+    if not isExist:
+        os.makedirs(outdir)
     total = len(inlist)
     chunk_size = total // proc_count
 
-    print(total, chunk_size)
+    logging.info(f"Total: {total} Chunk size: {chunk_size}")
 
     slice = chunks(inlist, chunk_size)
     processes = []
 
-    for i, s in enumerate(slice):
-        p = multiprocessing.Process(target=generate, args=(s,outdir,recs,uni_supervisions,bi_supervisions))
-        p.start()
-        processes.append(p)
+    if proc_count <= 1:
+        generate(inlist,outdir,recs,uni_supervisions,bi_supervisions)
+    elif proc_count >= 2:
+        for i, s in enumerate(slice):
+            p = multiprocessing.Process(target=generate, args=(s,outdir,recs,uni_supervisions,bi_supervisions))
+            p.start()
+            processes.append(p)
 
     # Joins all the processes
     for p in processes:
@@ -85,4 +100,5 @@ def main():
 
 
 if __name__ == "__main__":
+    
     main()
