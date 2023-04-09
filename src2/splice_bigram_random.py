@@ -130,7 +130,7 @@ def create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,bi_
     for i in range(length):
         line = generated_text[i].split()
         #print(line)
-        filename = line[0]
+        filename = "bi_"+line[0]
         #ranges = find_boundaries(line[1:])
         #print(ranges)
         #segments = create_segments(ranges,line[1:],uni_sups,bi_sups)
@@ -198,12 +198,12 @@ def create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,bi_
             #cut.save_audio(output_directory_path+'/bi_'+filename+'.wav')	
             transcripts.append(transcript.strip())
             #alignments[filename]=alignment
-            torchaudio.save(output_directory_path+'/'+"bi_"+filename+'.wav', torch.from_numpy(np.expand_dims(cut,0)),sample_rate=16000, encoding="PCM_S", bits_per_sample=16)
+            torchaudio.save(output_directory_path+'/'+filename+'.wav', torch.from_numpy(np.expand_dims(cut,0)),sample_rate=16000, encoding="PCM_S", bits_per_sample=16)
         end_time=datetime.now()
         delta = (end_time-start_time)
 
         print('saving audio time: ', delta)
 
-    with open(output_directory_path+'/bi_transcripts.txt','a') as f:
+    with open(output_directory_path+'/transcripts.txt','a') as f:
         for t in transcripts:
             f.write(t+'\n')

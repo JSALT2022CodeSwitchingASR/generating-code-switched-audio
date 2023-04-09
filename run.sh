@@ -54,7 +54,6 @@ fi
 # run array jobs 
 
 if [ $mode == unigram ]; then 
-	transcripts="transcripts.txt"
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
 		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
@@ -75,7 +74,6 @@ if [ $mode == unigram ]; then
 	fi
 
 elif [ $mode == "unigram_imp" ]; then
-	transcripts="transcripts.txt"
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
 		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
@@ -95,7 +93,6 @@ elif [ $mode == "unigram_imp" ]; then
 					--process $proc
 	fi
 elif [ $mode == "bigram" ]; then
-	transcripts="bi_transcripts.txt"
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
 		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
@@ -124,7 +121,7 @@ if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
 # Concatenate the files together.
 	log "Concatenate the files together"
 	for n in $(seq $nj); do
-		cat $logdir/gen_$n/$transcripts
+		cat $logdir/gen_$n/transcripts.txt
 	done > $outdir/transcripts.txt
 
 	cp $logdir/gen_*/*.wav $outdir/
