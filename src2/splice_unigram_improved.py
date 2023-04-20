@@ -20,14 +20,15 @@ from lhotse.augmentation.transform import AudioTransform
 from dataclasses import dataclass, field
 import numpy as np
 import torch
-from lhotse.utils import (
-    Seconds,
-    compute_num_samples,
-    during_docs_build,
-    perturb_num_samples,
-    fastcopy,
-)
+# from lhotse.utils import (
+#     Seconds,
+#     compute_num_samples,
+#     during_docs_build,
+#     perturb_num_samples,
+#     fastcopy,
+# )
 from typing import Callable, Dict, List, Optional, Tuple, Union
+
 
 @dataclass
 class Hamming(AudioTransform):
@@ -65,7 +66,8 @@ def take_random(token,sups,recordings):
                                      text=sup[0])
      c = MonoCut(id=sup.id, start=sup.start, duration=sup.duration, channel=sup.channel, recording=recording,
                         supervisions=[sup])
-     return c       
+     return c  
+         
 def create_cs_audio(generated_text, output_directory_path, supervisions, recordings): 
     length = len(generated_text)
     transcripts=[]

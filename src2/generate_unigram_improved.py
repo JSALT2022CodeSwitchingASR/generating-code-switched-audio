@@ -50,17 +50,17 @@ def main():
 
     proc_count=args.process
     logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
-    data_path=args.data
-    sup_path=Path(data_path) / 'supervisions.json' #args.supervisions
+    data_path = Path(args.data)
+    sup_path = data_path / 'supervisions.json' #args.supervisions
     #bins_path=data_path+'unigram_bins.json'
-    rec_path=Path(data_path) / 'recording_dict.json'
+    rec_path = data_path / 'recording_dict.json'
 
     supervisions, recordings= sp2.load_dicts_modified(sup_path, rec_path)
     #recordings = {key: Recording.from_file(val).move_to_memory(channels=0,format="wav") for key, val in recordings.items()}
     recordings = {key: Recording.from_file(val) for key, val in recordings.items()}
-    inlist=open(args.input, 'r+', encoding='utf8', errors='ignore').readlines()
+    inlist = open(args.input, 'r+', encoding='utf8', errors='ignore').readlines()
     #inlist=open(args.input,'r').readlines()
-    outdir=args.output
+    outdir = args.output
     isExist = os.path.exists(outdir)
     if not isExist:
         os.makedirs(outdir)

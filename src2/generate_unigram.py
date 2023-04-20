@@ -12,6 +12,7 @@ import argparse
 import splice_unigram as sp2
 from lhotse import Recording
 import logging
+from pathlib import Path
 
 parser = argparse.ArgumentParser(description='CS Audio generation pipeline')
 # Datasets
@@ -51,10 +52,10 @@ def main():
     proc_count=args.process
     logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-    data_path=args.data
-    sup_path=data_path+'supervisions.json' #args.supervisions
+    data_path = Path(args.data)
+    sup_path = data_path / 'supervisions.json' #args.supervisions
     #bins_path=data_path+'unigram_bins.json'
-    rec_path=data_path+'recording_dict.json'
+    rec_path = data_path / 'recording_dict.json'
 
     supervisions, recordings= sp2.load_dicts_modified(sup_path, rec_path)
     #recordings = {key: (Recording.from_file(val).move_to_memory(channels=0,format="wav")) for key, val in recordings.items()}
