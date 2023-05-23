@@ -1,0 +1,4 @@
+lm_weight: 0.1
+ctc_weight: 0.0
+beam_size: 10
+penalty: 0.8
