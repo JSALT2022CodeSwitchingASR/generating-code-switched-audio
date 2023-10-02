@@ -2,6 +2,11 @@
 
 This repository contains the code used for the paper titled ["SPEECH COLLAGE: CODE-SWITCHED AUDIO GENERATION BY COLLAGING MONOLINGUAL CORPORA"](https://arxiv.org/pdf/2309.15674.pdf).
 
+## High level approach description
+
+![Alt text](images/high_level.png?raw=true "proposed_approach")
+
+
 ## Requirements
 
 ### Python Environment
@@ -42,6 +47,8 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
    ```
 
    This will convert the segments to the names of audio recordings from `wav.scp`.
+
+### Note: From this step you can follow `run.sh` for an automated execution of the below procedures:
 
 3. Following the Kaldi style, copy the `wav.scp` file containing monolingual utterances to `data_dir`. Generate a recording dictionary as follows:
 
@@ -95,7 +102,6 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
 
 8. Use the `data_dir_mode` data folder for ESPnet training.
 
-Note: You can follow the steps outlined in `run.sh` for an automated execution of the above procedures.
 
 ## Cite the Paper
 
