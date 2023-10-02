@@ -1,41 +1,84 @@
 # Speech Collage
 
-This repository contains the code used for the paper titled [Domain Adaptation with Representation Learning and Nonlinear Relation for Time Series" by Hussein A., Hajj H](https://dl.acm.org/doi/10.1145/3502905).
+This repository contains the code used for the paper titled [SPEECH COLLAGE: CODE-SWITCHED AUDIO GENERATION BY COLLAGING
+MONOLINGUAL CORPORA"](https://arxiv.org/pdf/2309.15674.pdf).
+
+## Requirements
+
+### Python environment
+
+- python version ` 3.8.12 `
+- To create anaconda environment run `conda env create -f environment.yml`
 
 
-steps to generate audio 
+### Install neccesary toolkits
+1- Install espnet and kaldi https://espnet.github.io/espnet/installation.html 
+2- Install SOX format libraries
+`sudo apt-get install libsox-fmt-all`
 
-1) with wav.scp file for the monolingual utterances, generate a recording dictionary 
-using setup_recording_dict.py in src2 
-usage is: python setup_recording_dict.py wav_scp_path output_folder 
-	e.g. python setup_recording_dict.py home/wav.scp output (do not include / in output path) 
 
-2) with ctm file for the monolingual utterances and recording dictionary, create a supervision 
-dictionary. For randomly generated utterances with unigrams and no signal processing, 
-use src2/setup_supervision_dict.py. To create a supervision dictionary for unigrams with signal processing, 
-use src2/setup_supervision_improved_dict.py 
-usage: python setup_supervision_dict.py ctm_file_path rec_dict_path output 
-eg. python setup_supervision_dict.py home/ctm.mono home/recordings.json output (do not include / in output path)
+## Steps to generate audio from monolingual data
+1- Train standard HMM-GMM ASR system following standard Kaldi recipies for you monolingual data https://github.com/kaldi-asr/kaldi. You can also follow the provided monolingual Chinese-English (Aishel+Tedlium3) recipe `asr1/kaldi/`
 
-3) modify either sbatch_unigram.sh (generates randomly) or sbatch_unigram_improved.sh (random with signal processing) 
-with the desired paths to the dictionaries and the input text and output directory. Make sure that the first 
-word in each line of the text is an utterance ID. 
-Example: 01NC01FBX_0101-1013706-1015417 then exam 怎 么 办 
+2- Generate the alignments (ctm) file using kaldi script `steps/get_train_ctm.sh` and save it in your `data_dir`. In addition copy the `text` (in our case code-switching) used for generation. Note here that you can use any text as long as you have the monolingual audios for that text. 
 
-4) run the generation with sbatch -p RM-shared --cpus-per-task 32 <script> 
+To generate the ctm using kaldi: `steps/get_train_ctm.sh --use-segments false data/train data/lang exp/tri3_ali data_dir/ctm.mono`
 
-5) once the audios are generated (will take 8-9 hours for 50 hours), create wav.scp file by 
-make_wav_scp.py. Must modify the paths within that file.  
+If the first column of `ctm` file is segments you will have to run `src/seg2rec_ctm.py data_dir` to convert the segments to the names of audio recordings from wav.scp.
 
-6) create utt2spk and spk2utt file with make_utt2spk.py. Again, must modify the paths in that file.  
+3- Following the kaldi style copy `wav.scp` file containing monolingual utterances to `data_dir`. Generate a recording dictionary as following:
 
-7) use the wav.scp, utt2spk, spk2utt and generated transcripts.txt in the generated audio folder 
-for espnet training 
+`python src/setup_recording_dict.py ${indir}/wav.scp outdir`
 
-8) I usually run the stage 2-4 on the generated audio, then combine this data with the monolingual speed perturbed 
-(cat mono_wav.scp synth_wav.scp > mixed_wav.scp)(same thing for text, utt2spk and spk2utt) 
+4- With ctm file for the monolingual utterances and recording dictionary, create a supervision 
+dictionary. 
+For randomly generated utterances with unigram units and no signal enhancement:
 
-9) train using the train_asr_conformer.yaml and decode with decode_asr.yaml 
+`python src/setup_supervision_dict.py data_dir/ctm.mono outdir/recording_dict.pkl outdir`
+
+For randomly generated utterances with unigram units and signal enhancement:
+
+`python src/setup_supervision_improved_dict.py data_dir/ctm.mono outdir/recording_dict.pkl outdir`
+
+For randomly generated utterances with bigrams units and signal enhancement:
+
+`python src/setup_bigram_sup_dict.py data_dir/ctm.mono outdir/recording_dict.pkl outdir`
+
+
+5- Run the audio generation. Below is an example for generating bigrams
+```
+./src/generate_bigram.py \
+					--input text \
+					--output outdir/bigrams \
+					--data outdir \
+					--jobs $nj
+```
+
+6- Once the audios are generated, run `make_wav_scp.py` to create wav.scp file.
+
+`python utils/make_wav_scp.py --audio-dir outdir/bigrams --out-dir data_dir_mode`
+
+7- Create the rest of the files: text, utt2spk, spk2utt:
+
+```
+cp outdir/bigrams/transcripts.txt data_dir_mode/text
+cat data_dir_mode/wav.scp | awk '{print $1 " " $1}' > data_dir_mode/utt2spk
+cp data_dir_mode/utt2spk data_dir_mode/spk2utt
+```
+
+8- Now use `data_dir_mode` data folder for Espnet training
+
+Note: You can follow `run.sh` for all the steps above.
+
+## Cite Paper:
+```
+@article{hussein2023speech,
+  title={Speech collage: code-switched audio generation by collaging monolingual corpora},
+  author={Hussein, Amir and Zeinali, Dorsa and Klejch, Ond{\v{r}}ej and Wiesner, Matthew and Yan, Brian and Chowdhury, Shammur and Ali, Ahmed and Watanabe, Shinji and Khudanpur, Sanjeev},
+  journal={arXiv preprint arXiv:2309.15674},
+  year={2023}
+}
+```
 
 
 

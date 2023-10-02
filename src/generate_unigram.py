@@ -22,7 +22,7 @@ parser.add_argument('--output', type=str, required=True,
                     help='Output directory including ..')
 parser.add_argument('--data', type=str, required=True, help='data path')
 # Optimization options
-parser.add_argument('--process', default=25, type=int, metavar='N',
+parser.add_argument('--jobs', default=25, type=int, metavar='N',
                     help='number of multiprocess to run')
 
 # parser.add_argument('--smoothing', action='store_true',
@@ -43,7 +43,7 @@ def chunks(list, n):
 def main():
     start_time = time.perf_counter()
 
-    proc_count=args.process
+    proc_count=args.jobs
     logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
     data_path = Path(args.data)

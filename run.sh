@@ -75,7 +75,7 @@ if [ $mode == unigram ]; then
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
-					--process $proc
+					--jobs $proc
 	fi
 
 elif [ $mode == "unigram_imp" ]; then
@@ -95,7 +95,7 @@ elif [ $mode == "unigram_imp" ]; then
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
-					--process $proc
+					--jobs $proc
 	fi
 elif [ $mode == "bigram" ]; then
 	log "$mode running array jobs"
@@ -118,7 +118,7 @@ elif [ $mode == "bigram" ]; then
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
-					--process $proc
+					--jobs $proc
 	fi
 fi
 
