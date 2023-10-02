@@ -10,21 +10,25 @@ stage=2
 stop_stage=3
 utils=/alt-arabic/speech/amir/kaldi/egs/wsj/s5/utils
 cmd=/alt-arabic/speech/amir/kaldi/egs/wsj/s5/utils/parallel/slurm.pl
-nj=150		# number of jobs across the nodes
+nj=150			# number of jobs across the nodes on cluster
 mode=bigram 	# different modes to generate the code switching: unigram, unigram_imp, bigrams
-logdir="/jsalt2/amir/generating-code-switched-audio2/slurm_log_${mode}"
+dir=/jsalt2/amir/generating-code-switched-audio2/
+logdir="$dir/slurm_log_${mode}"
+indir="$dir/data"
+
 
 if [ ! -d "$logdir" ]; then
   echo "$logdir does not exist, creating new $logdir"
   mkdir -p $logdir
 fi
 
+# input CS <text_file> 
+input_text="${indir}/text_60K" 	
+# desired output directory for audios 
+outdir="$dir/exp/${mode}" 	
 
-indir="/jsalt2/amir/generating-code-switched-audio2/data"
-inputlist="${indir}/text_60K" 	# input transcript for generation
-outdir="/jsalt2/amir/generating-code-switched-audio2/exp/${mode}" 	# desired output directory for audios 
-
-exp="/jsalt2/amir/generating-code-switched-audio2/exp/data_${mode}" 	# where json dictionaries of supervisions and recordings are stored
+# directory to store json dictionaries of supervisions and recordings are stored
+exp="$dir/data_${mode}" 	
 if [ ! -d "$exp" ]; then
   echo "$exp does not exist, creating  $exp"
   mkdir -p $exp
@@ -35,18 +39,19 @@ clean_dir=false
 
 if [ ${stage} -le -1 ] && [ ${stop_stage} -ge -1 ]; then
 	if [ $clean_dir == true ]; then
+		log "removing $outdir and $logdir"
 		rm -rf $outdir
 		rm -rf $logdir
 	fi
 	# split file to number of jobs
-	log "Splitting $inputlist into $nj jobs"
+	log "Splitting $input_text into $nj jobs"
 
 	split_scps=
 	for n in $(seq $nj); do
 		split_scps="$split_scps $logdir/out.$n"
 	done
 
-	$utils/split_scp.pl $inputlist $split_scps
+	$utils/split_scp.pl $input_text $split_scps
 
 	mkdir -p $outdir
 fi
@@ -56,17 +61,17 @@ fi
 if [ $mode == unigram ]; then 
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
-		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
-		python src2/setup_recording_dict.py ${indir}/wav.scp ${exp}
+		log "Preparing recordings dict: python src/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
+		python src/setup_recording_dict.py ${indir}/wav.scp ${exp}
 
 		log "Preparing supervisions: python setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.json ${exp}"
-		python src2/setup_supervision_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
+		python src/setup_supervision_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
 	fi
 
 	if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 		log "Generating audio with $mode mode"
 		$cmd JOB=1:$nj $logdir/out.JOB.log \
-			./src2/generate_unigram.py \
+			./src/generate_unigram.py \
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
@@ -76,17 +81,17 @@ if [ $mode == unigram ]; then
 elif [ $mode == "unigram_imp" ]; then
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
-		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
-		python src2/setup_recording_dict.py ${indir}/wav.scp ${exp}
+		log "Preparing recordings dict: python src/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
+		python src/setup_recording_dict.py ${indir}/wav.scp ${exp}
 
 		log "Preparing supervisions with hamming window: python setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.json ${exp}"
-		python src2/setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
+		python src/setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
 	fi
 
 	if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 		log "Generating audio with $mode mode"
 		$cmd JOB=1:$nj $logdir/out.JOB.log \
-			./src2/generate_unigram_improved.py \
+			./src/generate_unigram_improved.py \
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
@@ -95,21 +100,21 @@ elif [ $mode == "unigram_imp" ]; then
 elif [ $mode == "bigram" ]; then
 	log "$mode running array jobs"
 	if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
-		log "Preparing recordings dict: python src2/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
-		python src2/setup_recording_dict.py ${indir}/wav.scp ${exp}
+		log "Preparing recordings dict: python src/setup_recording_dict.py ${indir}/wav.scp ${outdir}"
+		python src/setup_recording_dict.py ${indir}/wav.scp ${exp}
 		
 		log "Preparing supervisions: python setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.json ${exp}"
-		python src2/setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
+		python src/setup_supervision_improved_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
 		
-		log "Preparing bigram supervisions: python src2/setup_bigram_sup_dict.py ${indir}/ctm.mono ${exp}/recording_dict.json ${exp}"
-		python src2/setup_bigram_sup_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
+		log "Preparing bigram supervisions: python src/setup_bigram_sup_dict.py ${indir}/ctm.mono ${exp}/recording_dict.json ${exp}"
+		python src/setup_bigram_sup_dict.py ${indir}/ctm.mono ${exp}/recording_dict.pkl ${exp}
 
 	fi
 
 	if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 		log "Generating audio with $mode mode"
 		$cmd JOB=1:$nj $logdir/out.JOB.log \
-			./src2/generate_bigram.py \
+			./src/generate_bigram.py \
 					--input $logdir/out.JOB \
 					--output $logdir/gen_JOB \
 					--data $exp \
@@ -126,10 +131,10 @@ if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
 
 	cp $logdir/gen_*/*.wav $outdir/
 	# check if all lines were processed
-	nf=$(wc -l < $inputlist)
+	nf=$(wc -l < $input_text)
 	nu=$(wc -l < $outdir/transcripts.txt)
 	if [ $nf -ne $nu ]; then
-		log "$0: It seems not all of the lines were successfully procesed" 
+		log "Warning $0: It seems not all of the lines were successfully procesed" 
 		log "$nu out of $nf were processed"
 	fi
 fi
@@ -138,7 +143,7 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
 
 	log "creating $mode directory with wav.scp, text, fake utt2spk"
 	mkdir $mode
-	python make_wav_scp.py --audio-dir $outdir --out-dir $mode
+	python utils/make_wav_scp.py --audio-dir $outdir --out-dir $mode
 	cp $outdir/transcripts.txt $mode/text
 	cat $mode/wav.scp | awk '{print $1 " " $1}' > $mode/utt2spk
 	cp $mode/utt2spk $mode/spk2utt
