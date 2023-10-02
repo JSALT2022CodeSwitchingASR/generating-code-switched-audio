@@ -4,7 +4,7 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
 
 ## High level approach description
 
-![Proposed Approach](https://github.com/AmirHussein96/generating-code-switched-audio/tree/main/images/Speech-collage-diagram.pdf)
+![Proposed Approach](images/high-level.png)
 
 ## Requirements
 
