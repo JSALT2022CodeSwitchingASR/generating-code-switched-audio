@@ -4,7 +4,7 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
 
 ## High level approach description
 
-![Alt text](images/high_level.png?raw=true "proposed_approach")
+![Alt text](images/Speech-collage-diagram.pdf?raw=true "proposed_approach")
 
 
 ## Requirements
