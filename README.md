@@ -23,7 +23,7 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
    sudo apt-get install libsox-fmt-all
    ```
 
-## Steps to Generate Audio from Monolingual Data
+## Steps to generate audio from monolingual data
 
 1. Train a standard HMM-GMM ASR system following the standard Kaldi recipes for your monolingual data. You can also follow the provided monolingual Chinese-English (Aishel+Tedlium3) recipe in `asr1/kaldi/`.
 
