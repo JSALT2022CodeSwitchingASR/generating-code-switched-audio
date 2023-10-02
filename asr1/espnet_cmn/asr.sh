@@ -60,7 +60,7 @@ oov="<unk>"         # Out of vocabulary symbol.
 blank="<blank>"     # CTC blank symbol
 sos_eos="<sos/eos>" # sos and eos symbole
 bpe_input_sentence_size=100000000 # Size of input sentence for BPE.
-bpe_nlsyms=         # non-linguistic symbols list, separated by a comma or a file containing 1 symbol per line, for BPE
+bpe_nlsyms=         # non-linguistic symbols list, separated by a comma, for BPE
 bpe_char_cover=1.0  # character coverage when modeling BPE
 
 # Ngram model related
@@ -69,7 +69,7 @@ ngram_exp=
 ngram_num=3
 
 # Language model related
-use_lm=true       # Use language model for ASR decoding.
+use_lm=false       # Use language model for ASR decoding.
 lm_tag=           # Suffix to the result dir for language model training.
 lm_exp=           # Specify the directory path for LM experiment.
                   # If this option is specified, lm_tag is ignored.
@@ -109,8 +109,6 @@ nll_batch_size=100 # Affect GPU memory usage when computing nll
 k2_config=./conf/decode_asr_transformer_with_k2.yaml
 
 use_streaming=false # Whether to use streaming decoding
-
-use_maskctc=false # Whether to use maskctc decoding
 
 batch_size=1
 inference_tag=    # Suffix to the result dir for decoding.
@@ -186,7 +184,7 @@ Options:
     --blank                   # CTC blank symbol (default="${blank}").
     --sos_eos                 # sos and eos symbole (default="${sos_eos}").
     --bpe_input_sentence_size # Size of input sentence for BPE (default="${bpe_input_sentence_size}").
-    --bpe_nlsyms              # Non-linguistic symbol list for sentencepiece, separated by a comma or a file containing 1 symbol per line . (default="${bpe_nlsyms}").
+    --bpe_nlsyms              # Non-linguistic symbol list for sentencepiece, separated by a comma. (default="${bpe_nlsyms}").
     --bpe_char_cover          # Character coverage when modeling BPE (default="${bpe_char_cover}").
 
     # Language model related
@@ -226,7 +224,6 @@ Options:
     --inference_asr_model # ASR model path for decoding (default="${inference_asr_model}").
     --download_model      # Download a model from Model Zoo and use it for decoding (default="${download_model}").
     --use_streaming       # Whether to use streaming decoding (default="${use_streaming}").
-    --use_maskctc         # Whether to use maskctc decoding (default="${use_streaming}").
 
     # [Task dependent] Set the datadir name created by local/data.sh
     --train_set     # Name of training set (required).
@@ -262,7 +259,8 @@ fi
 
 . ./path.sh
 . ./cmd.sh
-
+		#echo "train: ${train_set}"
+		#exit 255
 
 # Check required arguments
 [ -z "${train_set}" ] && { log "${help_message}"; log "Error: --train_set is required"; exit 2; };
@@ -442,6 +440,7 @@ if ! "${skip_data_prep}"; then
     if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
         log "Stage 1: Data preparation for data/${train_set}, data/${valid_set}, etc."
         # [Task dependent] Need to create data.sh for new corpus
+
         local/data.sh ${local_data_opts}
     fi
 
@@ -479,8 +478,7 @@ if ! "${skip_data_prep}"; then
             # If nothing is need, then format_wav_scp.sh does nothing:
             # i.e. the input file format and rate is same as the output.
 
-            #for dset in "${train_set}" "${valid_set}" ${test_sets}; do
-	    for dset in "${valid_set}"; do
+            for dset in "${train_set}" "${valid_set}" ${test_sets}; do
                 if [ "${dset}" = "${train_set}" ] || [ "${dset}" = "${valid_set}" ]; then
                     _suf="/org"
                 else
@@ -507,20 +505,19 @@ if ! "${skip_data_prep}"; then
 
         elif [ "${feats_type}" = fbank_pitch ]; then
             log "[Require Kaldi] Stage 3: ${feats_type} extract: data/ -> ${data_feats}"
-	    #"${valid_set}" ${test_sets}
-            for dset in "${valid_set}" "${test_sets}"; do
+
+            for dset in "${train_set}" "${valid_set}" ${test_sets}; do
                 if [ "${dset}" = "${train_set}" ] || [ "${dset}" = "${valid_set}" ]; then
                     _suf="/org"
                 else
                     _suf=""
                 fi
                 # 1. Copy datadir
-                echo "here" 
-		utils/copy_data_dir.sh --validate_opts --non-print data/"${dset}" "${data_feats}${_suf}/${dset}"
-		echo "copy succeeded" 
+                utils/copy_data_dir.sh --validate_opts --non-print data/"${dset}" "${data_feats}${_suf}/${dset}"
+
                 # 2. Feature extract
                 _nj=$(min "${nj}" "$(<"${data_feats}${_suf}/${dset}/utt2spk" wc -l)")
-                steps/make_fbank_pitch.sh --nj "${_nj}" --cmd "${train_cmd} --num_threads 4" "${data_feats}${_suf}/${dset}"
+                steps/make_fbank_pitch.sh --nj "${_nj}" --cmd "${train_cmd}" "${data_feats}${_suf}/${dset}"
                 utils/fix_data_dir.sh "${data_feats}${_suf}/${dset}"
 
                 # 3. Derive the the frame length and feature dimension
@@ -645,12 +642,7 @@ if ! "${skip_data_prep}"; then
             cat ${bpe_train_text} | cut -f 2- -d" "  > "${bpedir}"/train.txt
 
             if [ -n "${bpe_nlsyms}" ]; then
-                if test -f "${bpe_nlsyms}"; then
-                    bpe_nlsyms_list=$(awk '{print $1}' ${bpe_nlsyms} | paste -s -d, -)
-                    _opts_spm="--user_defined_symbols=${bpe_nlsyms_list}"
-                else
-                    _opts_spm="--user_defined_symbols=${bpe_nlsyms}"
-                fi
+                _opts_spm="--user_defined_symbols=${bpe_nlsyms}"
             else
                 _opts_spm=""
             fi
@@ -762,7 +754,7 @@ if ! "${skip_train}"; then
             log "LM collect-stats started... log: '${_logdir}/stats.*.log'"
             # NOTE: --*_shape_file doesn't require length information if --batch_type=unsorted,
             #       but it's used only for deciding the sample ids.
-            # shellcheck disable=SC2046,SC2086
+            # shellcheck disable=SC2086
             ${train_cmd} JOB=1:"${_nj}" "${_logdir}"/stats.JOB.log \
                 ${python} -m espnet2.bin.lm_train \
                     --collect_stats true \
@@ -778,7 +770,7 @@ if ! "${skip_train}"; then
                     --train_shape_file "${_logdir}/train.JOB.scp" \
                     --valid_shape_file "${_logdir}/dev.JOB.scp" \
                     --output_dir "${_logdir}/stats.JOB" \
-                    ${_opts} ${lm_args} || { cat $(grep -l -i error "${_logdir}"/stats.*.log) ; exit 1; }
+                    ${_opts} ${lm_args} || { cat "${_logdir}"/stats.1.log; exit 1; }
 
             # 4. Aggregate shape files
             _opts=
@@ -905,7 +897,7 @@ if ! "${skip_train}"; then
         if "${use_ngram}"; then
             log "Stage 9: Ngram Training: train_set=${data_feats}/lm_train.txt"
             cut -f 2- -d " " ${data_feats}/lm_train.txt | lmplz -S "20%" --discount_fallback -o ${ngram_num} - >${ngram_exp}/${ngram_num}gram.arpa
-            build_binary -s ${ngram_exp}/${ngram_num}gram.arpa ${ngram_exp}/${ngram_num}gram.bin
+            build_binary -s ${ngram_exp}/${ngram_num}gram.arpa ${ngram_exp}/${ngram_num}gram.bin 
         else
             log "Stage 9: Skip ngram stages: use_ngram=${use_ngram}"
         fi
@@ -974,7 +966,7 @@ if ! "${skip_train}"; then
         # NOTE: --*_shape_file doesn't require length information if --batch_type=unsorted,
         #       but it's used only for deciding the sample ids.
 
-        # shellcheck disable=SC2046,SC2086
+        # shellcheck disable=SC2086
         ${train_cmd} JOB=1:"${_nj}" "${_logdir}"/stats.JOB.log \
             ${python} -m espnet2.bin.asr_train \
                 --collect_stats true \
@@ -992,7 +984,7 @@ if ! "${skip_train}"; then
                 --train_shape_file "${_logdir}/train.JOB.scp" \
                 --valid_shape_file "${_logdir}/valid.JOB.scp" \
                 --output_dir "${_logdir}/stats.JOB" \
-                ${_opts} ${asr_args} || { cat $(grep -l -i error "${_logdir}"/stats.*.log) ; exit 1; }
+                ${_opts} ${asr_args} || { cat "${_logdir}"/stats.1.log; exit 1; }
 
         # 4. Aggregate shape files
         _opts=
@@ -1116,12 +1108,14 @@ if ! "${skip_train}"; then
                 --valid_shape_file "${asr_stats_dir}/valid/speech_shape" \
                 --valid_shape_file "${asr_stats_dir}/valid/text_shape.${token_type}" \
                 --resume true \
-                --init_param ${pretrained_model} \
-                --ignore_init_mismatch ${ignore_init_mismatch} \
                 --fold_length "${_fold_length}" \
                 --fold_length "${asr_text_fold_length}" \
                 --output_dir "${asr_exp}" \
                 ${_opts} ${asr_args}
+
+                # --init_param ${pretrained_model} \
+                # --ignore_init_mismatch ${ignore_init_mismatch} \
+
 
     fi
 else
@@ -1205,8 +1199,6 @@ if ! "${skip_eval}"; then
         else
           if "${use_streaming}"; then
               asr_inference_tool="espnet2.bin.asr_inference_streaming"
-          elif "${use_maskctc}"; then
-              asr_inference_tool="espnet2.bin.asr_inference_maskctc"
           else
               asr_inference_tool="espnet2.bin.asr_inference"
           fi
@@ -1249,35 +1241,19 @@ if ! "${skip_eval}"; then
 
             # 2. Submit decoding jobs
             log "Decoding started... log: '${_logdir}/asr_inference.*.log'"
-            rm -f "${_logdir}/*.log"
-            # shellcheck disable=SC2046,SC2086
-            ${_cmd} --num_threads 16 --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
+            # shellcheck disable=SC2086
+            ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
                 ${python} -m ${asr_inference_tool} \
-		    --batch_size ${batch_size} \
+                    --batch_size ${batch_size} \
                     --ngpu "${_ngpu}" \
                     --data_path_and_name_and_type "${_data}/${_scp},speech,${_type}" \
                     --key_file "${_logdir}"/keys.JOB.scp \
                     --asr_train_config "${asr_exp}"/config.yaml \
                     --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
                     --output_dir "${_logdir}"/output.JOB \
-                    ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
+                    ${_opts} ${inference_args}
 
-            # 3. Calculate and report RTF based on decoding logs
-            if [ $asr_inference_tool == "espnet2.bin.asr_inference" ]; then
-                log "Calculating RTF & latency... log: '${_logdir}/calculate_rtf.log'"
-                rm -f "${_logdir}"/calculate_rtf.log
-                _fs=$(python3 -c "import humanfriendly as h;print(h.parse_size('${fs}'))")
-                _sample_shift=$(python3 -c "print(1 / ${_fs} * 1000)") # in ms
-                ${_cmd} JOB=1 "${_logdir}"/calculate_rtf.log \
-                    ../../../utils/calculate_rtf.py \
-                        --log-dir ${_logdir} \
-                        --log-name "asr_inference" \
-                        --input-shift ${_sample_shift} \
-                        --start-times-marker "speech length" \
-                        --end-times-marker "best hypo"
-            fi
-
-            # 4. Concatenates the output files from each jobs
+            # 3. Concatenates the output files from each jobs
             for f in token token_int score text; do
                 if [ -f "${_logdir}/output.1/1best_recog/${f}" ]; then
                   for i in $(seq "${_nj}"); do
@@ -1393,6 +1369,8 @@ if ! "${skip_eval}"; then
 
                 log "Write ${_type} result in ${_scoredir}/result.txt"
                 grep -e Avg -e SPKR -m 2 "${_scoredir}/result.txt"
+
+            #. ./local/remove_lid_score.sh ${_scoredir}
             done
         done
 

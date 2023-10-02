@@ -5,42 +5,44 @@ set -e
 set -u
 set -o pipefail
 
-stage=1
+stage=12
 stop_stage=13
 
-train_set="train_unigram_improved_mixed_sp" #change
+train_set="train"
 valid_set="valid"
-test_sets="devman"
-
-asr_config=conf/tuning/train_asr_conformer.yaml
-lm_config=conf/tuning/train_lm_transformer.yaml
+test_sets="devman devsge"
+asr_config=conf/tuning/train_asr_conformer_seame.yaml
+lm_config=conf/tuning/train_lm_lstm2.yaml
 inference_config=conf/decode_asr.yaml
 
-if [ ! -f "data/train/token.man.2" ]; then
+if [ ! -f "data/${train_set}/token.man.2" ]; then
     # must preprocess data first to get Mandarin character tokens
     if [ ${stage} -eq 1 ]; then
-        ./asr.sh --stage 1 --stop_stage 1 --train_set "${train_set}" --valid_set "${valid_set}"  --test_sets "${test_sets}" 
+        ./asr.sh --stage 1 --stop_stage 1 --train_set "${train_set}" --valid_set "${valid_set}" --test_sets "${test_sets}"
         stage=2
     else
-        echo "Error: data/train/token.man.2 does not exist! Run from stage=1 again."
+        echo "Error: data/${train_set}/token.man.2 does not exist! Run from stage=1 again."
         exit 1
     fi
 fi
 
-man_chars=2622
+#man_chars=2622
 bpe_nlsyms=""
-
-source data/train/token.man.2  # for bpe_nlsyms & man_chars
-nbpe=$((3000 + man_chars + 4))  # 5626
-# English BPE: 3000 / Mandarin: 2622 / other symbols: 4
+source data/${train_set}/token.man.2  # for bpe_nlsyms & man_chars
+#nbpe=$((3000 + man_chars + 4))  # 5626
+nbpe=5615
+# English BPE: 2000 / Mandarin: 2622 / other symbols: 4
 
 ./asr.sh \
-    --ngpu 1 \
+    --nj 100 \
+    --inference_nj 100 \
+    --use_lm false \
+    --expdir exp_seame \
+    --dumpdir dump_seame\
+    --ngpu 1\
     --stage ${stage} \
     --stop_stage ${stop_stage} \
-    --use_lm false \
     --nbpe ${nbpe} \
-    --nj 200 \
     --bpe_nlsyms "${bpe_nlsyms}" \
     --speed_perturb_factors "0.9 1.0 1.1" \
     --max_wav_duration 30 \
@@ -49,9 +51,8 @@ nbpe=$((3000 + man_chars + 4))  # 5626
     --inference_config "${inference_config}" \
     --train_set "${train_set}" \
     --valid_set "${valid_set}" \
-    --test_sets "${test_sets}" \
+    --test_sets "${valid_set} ${test_sets}" \
     --lm_train_text "data/${train_set}/text" \
-    --bpe_train_text "data/${train_set}/text.eng.bpe" \
-    --asr_stats_dir "exp/asr_stats_nbpe${nbpe}_seame_mixed_bigram" \
+    --bpe_train_text "data/${train_set}/text" \
     --score_opts "-e utf-8 -c NOASCII" \
     "$@"
