@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# Authors: Dorsa Z, Jons Hopkins University (Amir Hussein) 
+# Apache 2.0  (http://www.apache.org/licenses/LICENSE-2.0)
+
 import json
 from itertools import groupby
 from operator import itemgetter
@@ -5,34 +9,62 @@ import re
 import random 
 import torchaudio 
 from torchaudio import * 
-from lhotse import *
+from lhotse import SupervisionSegment, MonoCut, audio
 import torch 
 import os.path 
 import numpy as np 
-from langdetect import detect
 import sys 
+from dataclasses import dataclass, field
+from lhotse.augmentation.transform import AudioTransform
 from datetime import datetime
+from utils import load_pickled
+import msgspec
+import math 
+import pdb
 random.seed(50)
+
+@dataclass
+class Hamming(AudioTransform):
+    """
+    Hamming window
+    """
+
+    def __call__(self, samples: np.ndarray) -> np.ndarray:
+        if isinstance(samples, np.ndarray):
+            samples = torch.from_numpy(samples)
+        augmented = samples*np.float32(np.hamming(len(samples)))
+        return augmented.numpy()
+
+hamming = Hamming()
+
+def add_overlap(sample1, sample2, overlap=int(16000*0.1)):
+
+    sample2 = hamming(sample2)
+    new = np.zeros(len(sample1)+len(sample2)-overlap,dtype='float32')
+    new[0:len(sample1)] = sample1
+    new[len(sample1)-overlap:len(sample1)-overlap+len(sample2)] += sample2
+    return new
+
 def load_dicts_modified(uni_sup_dict_path,bi_sup_dict_path, rec_dict_path):
-    supervisions = json.load(open(uni_sup_dict_path))
-    recordings = json.load(open(rec_dict_path))
-    bi_sups = json.load(open(bi_sup_dict_path))
+    supervisions =  msgspec.json.decode(load_pickled(uni_sup_dict_path))
+    recordings =  msgspec.json.decode(load_pickled(rec_dict_path))
+    bi_sups =  msgspec.json.decode(load_pickled(bi_sup_dict_path))
     return supervisions,bi_sups, recordings
 
 def take_random(token,sups,recordings):
      matched_sups = sups[token]
      sup = random.sample(matched_sups, 1)[0]
      recording = recordings[sup[1]]
-     sup = SupervisionSegment(id=sup[0], recording_id=sup[1], start=sup[2], duration=sup[3], channel=0,
-                                     text=sup[0])
-     c = MonoCut(id=sup.id, start=sup.start, duration=sup.duration, channel=sup.channel, recording=recording,
-                        supervisions=[sup])
+     sup = SupervisionSegment(id=sup[0], recording_id=sup[1], start=sup[2], duration=sup[3], channel=0, text=sup[0])
+     c = MonoCut(id=sup.id, start=sup.start, duration=sup.duration, channel=sup.channel, recording=recording, supervisions=[sup])
      return c
+
 def isEnglishWord(word):
     # we use wordnet as well as enchant as wordnet check fails for contractions
     # and enchant check fails for british spelling
     # chinese character check 
     return re.sub(r'[\u4e00-\u9fff]+', '', word)==word and re.sub(r'[\u0600-\u06FF\s]+', '', word)==word
+
 def find_boundaries(line):
     ranges={}
     ranges['en']=[]
@@ -62,11 +94,11 @@ def find_boundaries(line):
 def create_segments(ranges, line,uni_v,bi_v):
     segments=[]
     for (b,e) in ranges:
-        seg=line[b:e+1]
+        seg = line[b:e+1]
         #print(seg)
-        if(len(seg) ==1):
+        if(len(seg) == 1):
             segments.append(seg)
-        elif(len(seg)==2):
+        elif(len(seg) == 2):
             if(' '.join(seg) in bi_v):
                 segments.append(seg)
             else:
@@ -95,87 +127,82 @@ def create_segments(ranges, line,uni_v,bi_v):
     return segments
 
 def create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,bi_sups):
-    length=len(generated_text)
-    transcripts=[]
+    length = len(generated_text)
+    transcripts = []
     for i in range(length):
-        line=generated_text[i].split()
-        print(line)
-        filename=line[0]
-        ranges=find_boundaries(line[1:])
-        print(ranges)
-        segments=create_segments(ranges,line[1:],uni_sups,bi_sups)
-        print(segments)
-        start_time=datetime.now()
-        transcript=filename+' '
-        cut=None
-        for j in range(len(segments)):
-            seg=segments[j]
-            l=len(seg)
-            seg=' '.join(seg)
-            token=seg
-            print(seg)
-            if(l==1 and seg in uni_sups):
-                if(not cut):
+        line = generated_text[i].split()
+        #print(line)
+        file_name = "bi-"+line[0]
+        #ranges = find_boundaries(line[1:])
+        #print(ranges)
+        #segments = create_segments(ranges,line[1:],uni_sups,bi_sups)
+        #print(segments)
+        start_time = datetime.now()
+        transcript = file_name + ' '
+        cut = None
+        sentence_tokens = line[1:]
+        j = 0
+        while j < len(sentence_tokens): 
+            token_uni = sentence_tokens[j]
+
+            if j == len(sentence_tokens):
+                token_bi = '<None>'
+            else: 
+                token_bi = ' '.join(sentence_tokens[j:j+2])
+        
+            if(token_bi in bi_sups):
+                if(cut is None):
+                    #print('here3'
+                    c = take_random(token_bi,bi_sups,recordings)
+                    c_audio = c.load_audio().squeeze()
+                    c_audio = c_audio/(math.sqrt(audio.audio_energy(c_audio)))
+                    cut = hamming(c_audio)
+                else:
+                    c = take_random(token_bi,bi_sups,recordings)
+                    c_audio = c.load_audio().squeeze()
+                    c_audio = c_audio/math.sqrt(audio.audio_energy(c_audio))
+                #    print(cut)
+                    #cut=cut.append(c)
+                    cut = add_overlap(cut, c_audio)
+                j += 2
+                transcript += (token_bi + ' ')
+            elif(token_uni in uni_sups):
+                if(cut is None):
                     #print('here1')
-                    c=take_random(seg,uni_sups,recordings)
-                    cut=c
+                    c=take_random(token_uni,uni_sups,recordings)
+                    c_audio =c.load_audio().squeeze()
+                    c_audio = c_audio/(math.sqrt(audio.audio_energy(c_audio)))
+                    cut = hamming(c_audio)
                         
                 else:
-                    c=take_random(seg,uni_sups,recordings)
-                    print(cut)
-                    cut = cut.append(c) 
-                transcript+=(seg+ ' ')
-            elif(l==2 and seg in bi_sups):
-                if(not cut):
-                    #print('here3'
-                    c=take_random(seg,bi_sups,recordings)
-                    cut=c
-                else:
-                    c=take_random(seg,bi_sups,recordings)
-                    print(cut)
-                    cut=cut.append(c)
-                   
-                transcript+=(seg+ ' ')
-        end_time=datetime.now()
+                    c=take_random(token_uni,uni_sups,recordings)
+                    #print(cut)
+                    c_audio = c.load_audio().squeeze()
+                    c_audio = c_audio/math.sqrt(audio.audio_energy(c_audio))
+                #    print(cut)
+                    #cut=cut.append(c)
+                    cut = add_overlap(cut,c_audio)
+                j += 1 
+                transcript += (token_uni+ ' ')
+
+            else:
+                j += 1
+        
+
+        end_time = datetime.now()
         delta = (end_time-start_time)
         print('making sentence time: ', delta)
-        start_time=datetime.now()
-        if(cut):
-            #cut.save_audio(output_directory_path+'/bi_'+filename+'.wav')	
+        start_time = datetime.now()
+        if(cut is not None):
+            #cut.save_audio(output_directory_path+'/bi_'+file_name+'.wav')	
             transcripts.append(transcript.strip())
-            #alignments[filename]=alignment
-            torchaudio.save(output_directory_path+'/bi_'+filename+'.wav',torch.from_numpy(cut.load_audio()),sample_rate=16000, encoding="PCM_S", bits_per_sample=16)
-        end_time=datetime.now()
+            #alignments[file_name]=alignment
+            torchaudio.save(output_directory_path+'/'+file_name+'.wav', torch.from_numpy(np.expand_dims(cut,0)),sample_rate=16000, encoding="PCM_S", bits_per_sample=16)
+        end_time = datetime.now()
         delta = (end_time-start_time)
 
         print('saving audio time: ', delta)
 
-    with open(output_directory_path+'/bi_transcripts.txt','a') as f:
+    with open(output_directory_path+'/transcripts.txt','a') as f:
         for t in transcripts:
             f.write(t+'\n')
-'''if __name__ == "__main__":
-    rec_dict_path='/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/data/recording_dict.json'
-    unigram_sups_path='/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/data/unigram_vocab.json'
-    unigram_bins_path='/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/data/unigram_bins.json'
-    bigram_sups_path='/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/data/bigram_vocab.json'
-    bigram_bins_path='/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/data/bigram_bins.json'
-    
-    recordings,uni_sups,uni_bins,bi_sups,bi_bins,percents=load_dicts(rec_dict_path,unigram_sups_path,unigram_bins_path,bigram_sups_path,bigram_bins_path)
-    print('here')
-  
-    output_directory_path='.'
-    generated_text=open('/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/dummy_2.txt','r').readlines()[0:1]
-    create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,uni_bins,bi_sups,bi_bins,percents)'''
-
-if __name__=="__main__":
-    rec_dict_path=sys.argv[1]
-    unigram_v_path=sys.argv[2]
-    unigram_bins_path=sys.argv[3]
-    bigram_v_path=sys.argv[4]
-    bigram_bins_path=sys.argv[5]
-     
-    recordings,uni_sups,uni_bins,bi_sups,bi_bins,percents=load_dicts(rec_dict_path,unigram_v_path,unigram_bins_path,bigram_v_path,bigram_bins_path) 
-
-    output_directory_path='.'
-    generated_text=open('/jsalt1/exp/wp2/audio_cs_aug/exp1/speech_gen_wp/dummy_2.txt','r').readlines()[0:1]
-    create_cs_audio(generated_text,output_directory_path,recordings,uni_sups,uni_bins,bi_sups,bi_bins,percents)
