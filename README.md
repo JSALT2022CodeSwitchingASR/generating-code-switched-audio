@@ -1,10 +1,16 @@
-# Speech Collage
+# **Speech Collage**
 
 This repository contains the code used for the paper titled ["SPEECH COLLAGE: CODE-SWITCHED AUDIO GENERATION BY COLLAGING MONOLINGUAL CORPORA"](https://arxiv.org/pdf/2309.15674.pdf).
 
-## High level approach description
+🔹 **Dataset Samples:** You can listen to a sample of the generated audio [here](<https://huggingface.co/datasets/AmirHussein/SpeechCollage>).
+
+---
+
+## **High-Level Approach Description**
 
 ![Proposed Approach](images/high-level.png)
+
+---
 
 ## Requirements
 
@@ -107,10 +113,13 @@ This repository contains the code used for the paper titled ["SPEECH COLLAGE: CO
 If you use this code for your work, please consider citing the paper:
 
 ```markdown
-@article{hussein2023speech,
-  title={Speech collage: code-switched audio generation by collaging monolingual corpora},
-  author={Hussein, Amir and Zeinali, Dorsa and Klejch, Ond{\v{r}}ej and Wiesner, Matthew and Yan, Brian and Chowdhury, Shammur and Ali, Ahmed and Watanabe, Shinji and Khudanpur, Sanjeev},
-  journal={arXiv preprint arXiv:2309.15674},
-  year={2023}
+@INPROCEEDINGS{10446857,
+  author={Hussein, Amir and Zeinali, Dorsa and Klejch, Ondřej and Wiesner, Matthew and Yan, Brian and Chowdhury, Shammur and Ali, Ahmed and Watanabe, Shinji and Khudanpur, Sanjeev},
+  booktitle={ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
+  title={Speech Collage: Code-Switched Audio Generation by Collaging Monolingual Corpora}, 
+  year={2024},
+  pages={12006-12010},
+  keywords={Training;Speech coding;Zero-shot learning;Splicing;Signal processing;Data augmentation;Data models;Code-switching;ASR;data augmentation;end-to-end;zero-shot learning},
+  doi={10.1109/ICASSP48485.2024.10446857}
 }
 ```
